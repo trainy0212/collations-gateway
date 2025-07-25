@@ -3,6 +3,7 @@ const fs = require('fs');
 const { exec } = require('child_process');
 const path = require('path');
 const bodyParser = require('body-parser');
+const axios = require('axios'); // 👈 新增 axios 用于发起 GraphQL 请求
 
 const app = express();
 const port = 3000;
@@ -80,6 +81,38 @@ app.post('/compile-latex', (req, res) => {
     });
 });
 
+
+// ✅ 新增的 GET 路由：代理调用 Foxx GraphQL 服务
+app.get('/fetchall', async (req, res) => {
+    try {
+        const graphqlEndpoint = 'http://localhost:8529/_db/test/graphql';
+        const query = `
+            query {
+                allNoteTitles {
+                    id
+                    titleZh
+                }
+            }
+        `;
+
+        const response = await axios.post(
+            graphqlEndpoint,
+            { query },
+            {
+                headers: { 'Content-Type': 'application/json' }
+            }
+        );
+
+        res.json(response.data); // 原样返回结果
+    } catch (error) {
+        console.error('❌ Foxx 查询失败:', error.message);
+        res.status(500).json({
+            error: 'Foxx 查询失败',
+            details: error.message
+        });
+    }
+});
+
 // 启动服务器前进行 LaTeX 安装检查
 checkLatexInstallation((error) => {
     if (error) {
@@ -92,4 +125,3 @@ checkLatexInstallation((error) => {
         console.log(`✅ Express 服务器正在运行, 监听端口 ${port}`);
     });
 });
-
